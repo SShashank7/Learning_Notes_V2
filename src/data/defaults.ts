@@ -1,0 +1,92 @@
+import { Category, Note } from '../types';
+import { v4 as uuid } from 'uuid';
+
+const now = Date.now();
+
+export const defaultCategories: Category[] = [
+  { id: 'cat-1', name: 'JavaScript', color: '#F7DF1E', icon: '⚡', createdAt: now },
+  { id: 'cat-2', name: 'React', color: '#61DAFB', icon: '⚛️', createdAt: now },
+  { id: 'cat-3', name: 'Python', color: '#3776AB', icon: '🐍', createdAt: now },
+  { id: 'cat-4', name: 'Data Structures', color: '#E44D26', icon: '🏗️', createdAt: now },
+  { id: 'cat-5', name: 'Algorithms', color: '#8B5CF6', icon: '🧮', createdAt: now },
+];
+
+export const defaultNotes: Note[] = [
+  {
+    id: uuid(),
+    title: 'Closures',
+    content: 'A closure is a function that has access to variables in its outer (enclosing) lexical scope, even after the outer function has returned. Closures are created every time a function is created.',
+    categoryId: 'cat-1',
+    createdAt: now - 86400000 * 5,
+    updatedAt: now - 86400000 * 5,
+    lastRevisedAt: now - 86400000 * 2,
+    revisionCount: 3,
+    confidence: 'high',
+  },
+  {
+    id: uuid(),
+    title: 'Promises & Async/Await',
+    content: 'Promises represent the eventual completion or failure of an async operation. async/await is syntactic sugar over Promises, making async code look synchronous. Always handle errors with try/catch.',
+    categoryId: 'cat-1',
+    createdAt: now - 86400000 * 3,
+    updatedAt: now - 86400000 * 3,
+    lastRevisedAt: null,
+    revisionCount: 0,
+    confidence: 'low',
+  },
+  {
+    id: uuid(),
+    title: 'useState Hook',
+    content: 'useState returns a state variable and a setter function. State updates may be batched for performance. Use functional updates when new state depends on old state: setState(prev => prev + 1).',
+    categoryId: 'cat-2',
+    createdAt: now - 86400000 * 4,
+    updatedAt: now - 86400000 * 4,
+    lastRevisedAt: now - 86400000,
+    revisionCount: 2,
+    confidence: 'medium',
+  },
+  {
+    id: uuid(),
+    title: 'useEffect Hook',
+    content: 'useEffect runs side effects after render. The dependency array controls when it re-runs. Return a cleanup function for subscriptions. Empty array [] means run once on mount.',
+    categoryId: 'cat-2',
+    createdAt: now - 86400000 * 2,
+    updatedAt: now - 86400000 * 2,
+    lastRevisedAt: now - 86400000 * 1,
+    revisionCount: 5,
+    confidence: 'mastered',
+  },
+  {
+    id: uuid(),
+    title: 'List Comprehensions',
+    content: 'List comprehensions provide a concise way to create lists: [x**2 for x in range(10) if x % 2 == 0]. They are faster than equivalent for loops and more Pythonic.',
+    categoryId: 'cat-3',
+    createdAt: now - 86400000 * 6,
+    updatedAt: now - 86400000 * 6,
+    lastRevisedAt: null,
+    revisionCount: 0,
+    confidence: 'low',
+  },
+  {
+    id: uuid(),
+    title: 'Binary Search Tree',
+    content: 'A BST is a node-based binary tree where each node has at most two children. Left child < parent < right child. Search, insert, delete operations are O(log n) average, O(n) worst case.',
+    categoryId: 'cat-4',
+    createdAt: now - 86400000 * 7,
+    updatedAt: now - 86400000 * 7,
+    lastRevisedAt: now - 86400000 * 3,
+    revisionCount: 1,
+    confidence: 'medium',
+  },
+  {
+    id: uuid(),
+    title: 'Dynamic Programming',
+    content: 'DP solves complex problems by breaking them into overlapping subproblems. Two approaches: top-down (memoization) and bottom-up (tabulation). Key: identify optimal substructure and overlapping subproblems.',
+    categoryId: 'cat-5',
+    createdAt: now - 86400000 * 8,
+    updatedAt: now - 86400000 * 8,
+    lastRevisedAt: null,
+    revisionCount: 0,
+    confidence: 'low',
+  },
+];
