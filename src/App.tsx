@@ -1,5 +1,4 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
-import { v4 as uuid } from "uuid";
 import { Category, Note, ViewMode, ConfidenceLevel } from "./types";
 
 import Sidebar from "./components/Sidebar";
@@ -7,7 +6,6 @@ import Dashboard from "./components/Dashboard";
 import CategoryView from "./components/CategoryView";
 import RevisionMode from "./components/RevisionMode";
 
-// 🔥 Firebase services
 import {
   addNoteToDB,
   getNotesFromDB,
@@ -23,30 +21,29 @@ import {
 } from "./services/categoryService";
 
 export default function App() {
-  // 🔥 State
   const [categories, setCategories] = useState<Category[]>([]);
   const [notes, setNotes] = useState<Note[]>([]);
 
   const [activeView, setActiveView] = useState<ViewMode>("dashboard");
-  const [activeCategoryId, setActiveCategoryId] = useState<string | null>(
-    null
-  );
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [activeCategoryId, setActiveCategoryId] = useState<string | null>(null);
 
-  // 🔥 Load from Firebase
+  // 🔥 FIX: sidebar state
+  const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false);
+
+  // 🔥 Load data
   useEffect(() => {
     const fetchData = async () => {
       const notesData = await getNotesFromDB();
       const categoriesData = await getCategoriesFromDB();
 
-      setNotes(notesData as Note[]);
-      setCategories(categoriesData as Category[]);
+      setNotes(notesData);
+      setCategories(categoriesData);
     };
 
     fetchData();
   }, []);
 
-  // 📊 Note counts
+  // 📊 Note count
   const noteCounts = useMemo(() => {
     const counts: Record<string, number> = {};
     notes.forEach((n) => {
@@ -66,16 +63,14 @@ export default function App() {
 
   // 📁 Add Category
   const handleAddCategory = useCallback(
-    async (name: string, color: string, icon: string) => {
-      const newCat: Category = {
-        id: uuid(),
+    async (name: string, color: string, icon: string): Promise<void> => {
+      const newCat = await addCategoryToDB({
         name,
         color,
         icon,
         createdAt: Date.now(),
-      };
+      });
 
-      await addCategoryToDB(newCat);
       setCategories((prev) => [...prev, newCat]);
     },
     []
@@ -83,7 +78,12 @@ export default function App() {
 
   // ✏️ Edit Category
   const handleEditCategory = useCallback(
-    async (id: string, name: string, color: string, icon: string) => {
+    async (
+      id: string,
+      name: string,
+      color: string,
+      icon: string
+    ): Promise<void> => {
       await updateCategoryInDB(id, { name, color, icon });
 
       setCategories((prev) =>
@@ -97,7 +97,7 @@ export default function App() {
 
   // 🗑️ Delete Category
   const handleDeleteCategory = useCallback(
-    async (id: string) => {
+    async (id: string): Promise<void> => {
       await deleteCategoryFromDB(id);
 
       setCategories((prev) => prev.filter((c) => c.id !== id));
@@ -113,9 +113,12 @@ export default function App() {
 
   // 📝 Add Note
   const handleAddNote = useCallback(
-    async (title: string, content: string, categoryId: string) => {
-      const newNote: Note = {
-        id: uuid(),
+    async (
+      title: string,
+      content: string,
+      categoryId: string
+    ): Promise<void> => {
+      const newNote = await addNoteToDB({
         title,
         content,
         categoryId,
@@ -124,22 +127,21 @@ export default function App() {
         lastRevisedAt: null,
         revisionCount: 0,
         confidence: "low",
-      };
+      });
 
-      await addNoteToDB(newNote);
       setNotes((prev) => [...prev, newNote]);
     },
     []
   );
 
-  // ✏️ Edit Note (🔥 FIXED - DB + UI sync)
+  // ✏️ Edit Note
   const handleEditNote = useCallback(
     async (
       id: string,
       title: string,
       content: string,
       confidence: ConfidenceLevel
-    ) => {
+    ): Promise<void> => {
       await updateNoteInDB(id, {
         title,
         content,
@@ -158,14 +160,16 @@ export default function App() {
     []
   );
 
-  // 🗑️ Delete Note (🔥 FIXED - DB + UI sync)
-  const handleDeleteNote = useCallback(async (id: string) => {
-    await deleteNoteFromDB(id);
+  // 🗑️ Delete Note
+  const handleDeleteNote = useCallback(
+    async (id: string): Promise<void> => {
+      await deleteNoteFromDB(id);
+      setNotes((prev) => prev.filter((n) => n.id !== id));
+    },
+    []
+  );
 
-    setNotes((prev) => prev.filter((n) => n.id !== id));
-  }, []);
-
-  // 🔁 Revision handlers
+  // 🔁 FIX: Revision handlers
   const handleUpdateConfidence = useCallback(
     (id: string, confidence: ConfidenceLevel) => {
       setNotes((prev) =>
@@ -202,7 +206,7 @@ export default function App() {
 
   return (
     <div className="flex h-screen bg-gray-950 text-white overflow-hidden">
-      {/* Sidebar */}
+      {/* 🔥 FIXED Sidebar Props */}
       <Sidebar
         categories={categories}
         activeView={activeView}
@@ -217,8 +221,7 @@ export default function App() {
         onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
       />
 
-      {/* Main */}
-      <main className="flex-1 flex flex-col overflow-hidden">
+      <main className="flex-1 flex flex-col">
         {activeView === "dashboard" && (
           <Dashboard
             categories={categories}
@@ -237,6 +240,7 @@ export default function App() {
           />
         )}
 
+        {/* 🔥 FIXED RevisionMode Props */}
         {activeView === "revision" && (
           <RevisionMode
             categories={categories}
@@ -244,20 +248,6 @@ export default function App() {
             onUpdateConfidence={handleUpdateConfidence}
             onMarkRevised={handleMarkRevised}
           />
-        )}
-
-        {activeView === "category" && !activeCategory && (
-          <div className="flex-1 flex items-center justify-center">
-            <div className="text-center">
-              <p className="text-gray-500 text-lg">Category not found</p>
-              <button
-                onClick={() => handleViewChange("dashboard")}
-                className="mt-3 text-indigo-400 hover:underline text-sm"
-              >
-                Go to Dashboard
-              </button>
-            </div>
-          </div>
         )}
       </main>
     </div>

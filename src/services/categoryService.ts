@@ -12,21 +12,26 @@ import { Category } from "../types";
 
 const CATEGORY_COLLECTION = "categories";
 
-// 🔥 Get all categories
+// ✅ Get
 export const getCategoriesFromDB = async () => {
   const snapshot = await getDocs(collection(db, CATEGORY_COLLECTION));
-  return snapshot.docs.map((doc) => ({
-    ...doc.data(),
-    id: doc.id,
+  return snapshot.docs.map((d) => ({
+    ...d.data(),
+    id: d.id, // 🔥 Firebase ID
   })) as Category[];
 };
 
-// 🔥 Add category
-export const addCategoryToDB = async (category: Category) => {
-  await addDoc(collection(db, CATEGORY_COLLECTION), category);
+// ✅ Add (🔥 FIXED)
+export const addCategoryToDB = async (category: Omit<Category, "id">) => {
+  const docRef = await addDoc(collection(db, CATEGORY_COLLECTION), category);
+
+  return {
+    ...category,
+    id: docRef.id, // 🔥 return Firebase ID
+  };
 };
 
-// 🔥 Update category
+// Update
 export const updateCategoryInDB = async (
   id: string,
   data: Partial<Category>
@@ -34,7 +39,7 @@ export const updateCategoryInDB = async (
   await updateDoc(doc(db, CATEGORY_COLLECTION, id), data);
 };
 
-// 🔥 Delete category
+// Delete
 export const deleteCategoryFromDB = async (id: string) => {
   await deleteDoc(doc(db, CATEGORY_COLLECTION, id));
 };
