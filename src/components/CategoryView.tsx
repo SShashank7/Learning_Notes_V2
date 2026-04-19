@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { Category, Note, ConfidenceLevel } from '../types';
+import { downloadCategoryPDF } from "../utils/pdfUtils";
+
 import {
   Plus,
   Edit3,
@@ -119,18 +121,38 @@ export default function CategoryView({
               </p>
             </div>
           </div>
-          <button
-            onClick={() => {
-              setShowAddForm(true);
-              setFormTitle('');
-              setFormContent('');
-            }}
-            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white font-medium px-5 py-2.5 rounded-xl transition-colors shadow-lg shadow-indigo-500/20"
-          >
-            <Plus size={18} />
-            Add Topic
-          </button>
-        </div>
+
+          {/* ✅ BUTTONS WRAPPER */}
+  <div className="flex gap-3">
+
+    {/* 🔥 Download PDF Button */}
+    <button
+      onClick={() =>
+        downloadCategoryPDF(
+          category.name,
+          notes.filter((n) => n.categoryId === category.id)
+        )
+      }
+      className="bg-green-600 hover:bg-green-500 text-white font-medium px-5 py-2.5 rounded-xl transition-colors shadow-lg"
+    >
+      Download PDF
+    </button>
+
+    {/* Existing Add Topic Button */}
+    <button
+      onClick={() => {
+        setShowAddForm(true);
+        setFormTitle('');
+        setFormContent('');
+      }}
+      className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white font-medium px-5 py-2.5 rounded-xl transition-colors shadow-lg shadow-indigo-500/20"
+    >
+      <Plus size={18} />
+      Add Topic
+    </button>
+
+  </div>
+</div>
 
         {/* Search & Sort */}
         <div className="flex items-center gap-3 mb-6 flex-wrap">
