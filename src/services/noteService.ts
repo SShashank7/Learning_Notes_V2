@@ -1,18 +1,28 @@
 import { db } from "../firebase";
-import { collection, addDoc, getDocs } from "firebase/firestore";
+import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc } from "firebase/firestore";
+import { Note } from "../types";
 
-const notesCollection = collection(db, "notes");
+const NOTE_COLLECTION = "notes";
 
-// Add note
-export const addNoteToDB = async (note: any) => {
-  await addDoc(notesCollection, note);
+// existing
+export const addNoteToDB = async (note: Note) => {
+  await addDoc(collection(db, NOTE_COLLECTION), note);
 };
 
-// Get all notes
 export const getNotesFromDB = async () => {
-  const snapshot = await getDocs(notesCollection);
-  return snapshot.docs.map(doc => ({
+  const snapshot = await getDocs(collection(db, NOTE_COLLECTION));
+  return snapshot.docs.map((doc) => ({
+    ...doc.data(),
     id: doc.id,
-    ...doc.data()
-  }));
+  })) as Note[];
+};
+
+// 🔥 NEW: UPDATE NOTE
+export const updateNoteInDB = async (id: string, data: Partial<Note>) => {
+  await updateDoc(doc(db, NOTE_COLLECTION, id), data);
+};
+
+// 🔥 NEW: DELETE NOTE
+export const deleteNoteFromDB = async (id: string) => {
+  await deleteDoc(doc(db, NOTE_COLLECTION, id));
 };

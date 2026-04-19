@@ -1,35 +1,52 @@
-import { useState, useMemo, useCallback, useEffect } from 'react';
-import { v4 as uuid } from 'uuid';
-import { Category, Note, ViewMode, ConfidenceLevel } from './types';
-import { defaultCategories } from './data/defaults';
+import { useState, useMemo, useCallback, useEffect } from "react";
+import { v4 as uuid } from "uuid";
+import { Category, Note, ViewMode, ConfidenceLevel } from "./types";
 
-import Sidebar from './components/Sidebar';
-import Dashboard from './components/Dashboard';
-import CategoryView from './components/CategoryView';
-import RevisionMode from './components/RevisionMode';
+import Sidebar from "./components/Sidebar";
+import Dashboard from "./components/Dashboard";
+import CategoryView from "./components/CategoryView";
+import RevisionMode from "./components/RevisionMode";
 
 // 🔥 Firebase services
-import { addNoteToDB, getNotesFromDB } from './services/noteService';
+import {
+  addNoteToDB,
+  getNotesFromDB,
+  updateNoteInDB,
+  deleteNoteFromDB,
+} from "./services/noteService";
+
+import {
+  addCategoryToDB,
+  getCategoriesFromDB,
+  updateCategoryInDB,
+  deleteCategoryFromDB,
+} from "./services/categoryService";
 
 export default function App() {
-  // ❌ Removed localStorage
-  const [categories, setCategories] = useState<Category[]>(defaultCategories);
+  // 🔥 State
+  const [categories, setCategories] = useState<Category[]>([]);
   const [notes, setNotes] = useState<Note[]>([]);
 
-  const [activeView, setActiveView] = useState<ViewMode>('dashboard');
-  const [activeCategoryId, setActiveCategoryId] = useState<string | null>(null);
+  const [activeView, setActiveView] = useState<ViewMode>("dashboard");
+  const [activeCategoryId, setActiveCategoryId] = useState<string | null>(
+    null
+  );
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
-  // 🔥 Load notes from Firebase on app start
+  // 🔥 Load from Firebase
   useEffect(() => {
-    const fetchNotes = async () => {
-      const data = await getNotesFromDB();
-      setNotes(data as Note[]);
+    const fetchData = async () => {
+      const notesData = await getNotesFromDB();
+      const categoriesData = await getCategoriesFromDB();
+
+      setNotes(notesData as Note[]);
+      setCategories(categoriesData as Category[]);
     };
-    fetchNotes();
+
+    fetchData();
   }, []);
 
-  // Note counts per category
+  // 📊 Note counts
   const noteCounts = useMemo(() => {
     const counts: Record<string, number> = {};
     notes.forEach((n) => {
@@ -38,94 +55,143 @@ export default function App() {
     return counts;
   }, [notes]);
 
-  // View change handler
-  const handleViewChange = useCallback((view: ViewMode, categoryId?: string) => {
-    setActiveView(view);
-    setActiveCategoryId(categoryId || null);
-  }, []);
+  // 🎯 View change
+  const handleViewChange = useCallback(
+    (view: ViewMode, categoryId?: string) => {
+      setActiveView(view);
+      setActiveCategoryId(categoryId || null);
+    },
+    []
+  );
 
-  // Category CRUD (still local for now)
-  const handleAddCategory = useCallback((name: string, color: string, icon: string) => {
-    const newCat: Category = {
-      id: uuid(),
-      name,
-      color,
-      icon,
-      createdAt: Date.now(),
-    };
-    setCategories((prev) => [...prev, newCat]);
-  }, []);
+  // 📁 Add Category
+  const handleAddCategory = useCallback(
+    async (name: string, color: string, icon: string) => {
+      const newCat: Category = {
+        id: uuid(),
+        name,
+        color,
+        icon,
+        createdAt: Date.now(),
+      };
 
-  const handleEditCategory = useCallback((id: string, name: string, color: string, icon: string) => {
-    setCategories((prev) =>
-      prev.map((c) => (c.id === id ? { ...c, name, color, icon } : c))
-    );
-  }, []);
+      await addCategoryToDB(newCat);
+      setCategories((prev) => [...prev, newCat]);
+    },
+    []
+  );
 
-  const handleDeleteCategory = useCallback((id: string) => {
-    setCategories((prev) => prev.filter((c) => c.id !== id));
-    setNotes((prev) => prev.filter((n) => n.categoryId !== id));
-    if (activeCategoryId === id) {
-      setActiveView('dashboard');
-      setActiveCategoryId(null);
-    }
-  }, [activeCategoryId]);
+  // ✏️ Edit Category
+  const handleEditCategory = useCallback(
+    async (id: string, name: string, color: string, icon: string) => {
+      await updateCategoryInDB(id, { name, color, icon });
 
-  // 🔥 Add Note → Firebase
-  const handleAddNote = useCallback(async (title: string, content: string, categoryId: string) => {
-    const newNote: Note = {
-      id: uuid(),
-      title,
-      content,
-      categoryId,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-      lastRevisedAt: null,
-      revisionCount: 0,
-      confidence: 'low',
-    };
+      setCategories((prev) =>
+        prev.map((c) =>
+          c.id === id ? { ...c, name, color, icon } : c
+        )
+      );
+    },
+    []
+  );
 
-    await addNoteToDB(newNote);
+  // 🗑️ Delete Category
+  const handleDeleteCategory = useCallback(
+    async (id: string) => {
+      await deleteCategoryFromDB(id);
 
-    // update UI instantly
-    setNotes((prev) => [...prev, newNote]);
-  }, []);
+      setCategories((prev) => prev.filter((c) => c.id !== id));
+      setNotes((prev) => prev.filter((n) => n.categoryId !== id));
 
-  // 🔥 Edit Note (UI only for now)
-  const handleEditNote = useCallback((id: string, title: string, content: string, confidence: ConfidenceLevel) => {
-    setNotes((prev) =>
-      prev.map((n) =>
-        n.id === id
-          ? { ...n, title, content, confidence, updatedAt: Date.now() }
-          : n
-      )
-    );
-  }, []);
+      if (activeCategoryId === id) {
+        setActiveView("dashboard");
+        setActiveCategoryId(null);
+      }
+    },
+    [activeCategoryId]
+  );
 
-  const handleDeleteNote = useCallback((id: string) => {
+  // 📝 Add Note
+  const handleAddNote = useCallback(
+    async (title: string, content: string, categoryId: string) => {
+      const newNote: Note = {
+        id: uuid(),
+        title,
+        content,
+        categoryId,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        lastRevisedAt: null,
+        revisionCount: 0,
+        confidence: "low",
+      };
+
+      await addNoteToDB(newNote);
+      setNotes((prev) => [...prev, newNote]);
+    },
+    []
+  );
+
+  // ✏️ Edit Note (🔥 FIXED - DB + UI sync)
+  const handleEditNote = useCallback(
+    async (
+      id: string,
+      title: string,
+      content: string,
+      confidence: ConfidenceLevel
+    ) => {
+      await updateNoteInDB(id, {
+        title,
+        content,
+        confidence,
+        updatedAt: Date.now(),
+      });
+
+      setNotes((prev) =>
+        prev.map((n) =>
+          n.id === id
+            ? { ...n, title, content, confidence, updatedAt: Date.now() }
+            : n
+        )
+      );
+    },
+    []
+  );
+
+  // 🗑️ Delete Note (🔥 FIXED - DB + UI sync)
+  const handleDeleteNote = useCallback(async (id: string) => {
+    await deleteNoteFromDB(id);
+
     setNotes((prev) => prev.filter((n) => n.id !== id));
   }, []);
 
-  // Revision handlers
-  const handleUpdateConfidence = useCallback((id: string, confidence: ConfidenceLevel) => {
-    setNotes((prev) =>
-      prev.map((n) =>
-        n.id === id ? { ...n, confidence, updatedAt: Date.now() } : n
-      )
-    );
-  }, []);
+  // 🔁 Revision handlers
+  const handleUpdateConfidence = useCallback(
+    (id: string, confidence: ConfidenceLevel) => {
+      setNotes((prev) =>
+        prev.map((n) =>
+          n.id === id ? { ...n, confidence, updatedAt: Date.now() } : n
+        )
+      );
+    },
+    []
+  );
 
   const handleMarkRevised = useCallback((id: string) => {
     setNotes((prev) =>
       prev.map((n) =>
         n.id === id
-          ? { ...n, lastRevisedAt: Date.now(), revisionCount: n.revisionCount + 1 }
+          ? {
+              ...n,
+              lastRevisedAt: Date.now(),
+              revisionCount: n.revisionCount + 1,
+            }
           : n
       )
     );
   }, []);
 
-  // Active category data
+  // 📌 Active category
   const activeCategory = activeCategoryId
     ? categories.find((c) => c.id === activeCategoryId) || null
     : null;
@@ -151,9 +217,9 @@ export default function App() {
         onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
       />
 
-      {/* Main Content */}
+      {/* Main */}
       <main className="flex-1 flex flex-col overflow-hidden">
-        {activeView === 'dashboard' && (
+        {activeView === "dashboard" && (
           <Dashboard
             categories={categories}
             notes={notes}
@@ -161,7 +227,7 @@ export default function App() {
           />
         )}
 
-        {activeView === 'category' && activeCategory && (
+        {activeView === "category" && activeCategory && (
           <CategoryView
             category={activeCategory}
             notes={categoryNotes}
@@ -171,7 +237,7 @@ export default function App() {
           />
         )}
 
-        {activeView === 'revision' && (
+        {activeView === "revision" && (
           <RevisionMode
             categories={categories}
             notes={notes}
@@ -180,12 +246,12 @@ export default function App() {
           />
         )}
 
-        {activeView === 'category' && !activeCategory && (
+        {activeView === "category" && !activeCategory && (
           <div className="flex-1 flex items-center justify-center">
             <div className="text-center">
               <p className="text-gray-500 text-lg">Category not found</p>
               <button
-                onClick={() => handleViewChange('dashboard')}
+                onClick={() => handleViewChange("dashboard")}
                 className="mt-3 text-indigo-400 hover:underline text-sm"
               >
                 Go to Dashboard
