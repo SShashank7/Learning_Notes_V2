@@ -11,6 +11,7 @@ import {
   getNotesFromDB,
   updateNoteInDB,
   deleteNoteFromDB,
+  deleteNotesByCategoryId,
 } from "./services/noteService";
 
 import {
@@ -27,7 +28,6 @@ export default function App() {
   const [activeView, setActiveView] = useState<ViewMode>("dashboard");
   const [activeCategoryId, setActiveCategoryId] = useState<string | null>(null);
 
-  // 🔥 FIX: sidebar state
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false);
 
   // 🔥 Load data
@@ -95,11 +95,16 @@ export default function App() {
     []
   );
 
-  // 🗑️ Delete Category
+  // 🗑️ DELETE CATEGORY (🔥 CASCADE FIX)
   const handleDeleteCategory = useCallback(
     async (id: string): Promise<void> => {
+      // Step 1: delete all notes of this category
+      await deleteNotesByCategoryId(id);
+
+      // Step 2: delete category
       await deleteCategoryFromDB(id);
 
+      // Step 3: update UI
       setCategories((prev) => prev.filter((c) => c.id !== id));
       setNotes((prev) => prev.filter((n) => n.categoryId !== id));
 
@@ -169,7 +174,7 @@ export default function App() {
     []
   );
 
-  // 🔁 FIX: Revision handlers
+  // 🔁 Revision handlers
   const handleUpdateConfidence = useCallback(
     (id: string, confidence: ConfidenceLevel) => {
       setNotes((prev) =>
@@ -206,7 +211,6 @@ export default function App() {
 
   return (
     <div className="flex h-screen bg-gray-950 text-white overflow-hidden">
-      {/* 🔥 FIXED Sidebar Props */}
       <Sidebar
         categories={categories}
         activeView={activeView}
@@ -240,7 +244,6 @@ export default function App() {
           />
         )}
 
-        {/* 🔥 FIXED RevisionMode Props */}
         {activeView === "revision" && (
           <RevisionMode
             categories={categories}
