@@ -1,19 +1,33 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { v4 as uuid } from 'uuid';
 import { Category, Note, ViewMode, ConfidenceLevel } from './types';
-import { useLocalStorage } from './hooks/useLocalStorage';
-import { defaultCategories, defaultNotes } from './data/defaults';
+import { defaultCategories } from './data/defaults';
+
 import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
 import CategoryView from './components/CategoryView';
 import RevisionMode from './components/RevisionMode';
 
+// 🔥 Firebase services
+import { addNoteToDB, getNotesFromDB } from './services/noteService';
+
 export default function App() {
-  const [categories, setCategories] = useLocalStorage<Category[]>('nt-categories', defaultCategories);
-  const [notes, setNotes] = useLocalStorage<Note[]>('nt-notes', defaultNotes);
+  // ❌ Removed localStorage
+  const [categories, setCategories] = useState<Category[]>(defaultCategories);
+  const [notes, setNotes] = useState<Note[]>([]);
+
   const [activeView, setActiveView] = useState<ViewMode>('dashboard');
   const [activeCategoryId, setActiveCategoryId] = useState<string | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
+  // 🔥 Load notes from Firebase on app start
+  useEffect(() => {
+    const fetchNotes = async () => {
+      const data = await getNotesFromDB();
+      setNotes(data as Note[]);
+    };
+    fetchNotes();
+  }, []);
 
   // Note counts per category
   const noteCounts = useMemo(() => {
@@ -30,7 +44,7 @@ export default function App() {
     setActiveCategoryId(categoryId || null);
   }, []);
 
-  // Category CRUD
+  // Category CRUD (still local for now)
   const handleAddCategory = useCallback((name: string, color: string, icon: string) => {
     const newCat: Category = {
       id: uuid(),
@@ -40,13 +54,13 @@ export default function App() {
       createdAt: Date.now(),
     };
     setCategories((prev) => [...prev, newCat]);
-  }, [setCategories]);
+  }, []);
 
   const handleEditCategory = useCallback((id: string, name: string, color: string, icon: string) => {
     setCategories((prev) =>
       prev.map((c) => (c.id === id ? { ...c, name, color, icon } : c))
     );
-  }, [setCategories]);
+  }, []);
 
   const handleDeleteCategory = useCallback((id: string) => {
     setCategories((prev) => prev.filter((c) => c.id !== id));
@@ -55,10 +69,10 @@ export default function App() {
       setActiveView('dashboard');
       setActiveCategoryId(null);
     }
-  }, [setCategories, setNotes, activeCategoryId]);
+  }, [activeCategoryId]);
 
-  // Note CRUD
-  const handleAddNote = useCallback((title: string, content: string, categoryId: string) => {
+  // 🔥 Add Note → Firebase
+  const handleAddNote = useCallback(async (title: string, content: string, categoryId: string) => {
     const newNote: Note = {
       id: uuid(),
       title,
@@ -70,9 +84,14 @@ export default function App() {
       revisionCount: 0,
       confidence: 'low',
     };
-    setNotes((prev) => [...prev, newNote]);
-  }, [setNotes]);
 
+    await addNoteToDB(newNote);
+
+    // update UI instantly
+    setNotes((prev) => [...prev, newNote]);
+  }, []);
+
+  // 🔥 Edit Note (UI only for now)
   const handleEditNote = useCallback((id: string, title: string, content: string, confidence: ConfidenceLevel) => {
     setNotes((prev) =>
       prev.map((n) =>
@@ -81,11 +100,11 @@ export default function App() {
           : n
       )
     );
-  }, [setNotes]);
+  }, []);
 
   const handleDeleteNote = useCallback((id: string) => {
     setNotes((prev) => prev.filter((n) => n.id !== id));
-  }, [setNotes]);
+  }, []);
 
   // Revision handlers
   const handleUpdateConfidence = useCallback((id: string, confidence: ConfidenceLevel) => {
@@ -94,7 +113,7 @@ export default function App() {
         n.id === id ? { ...n, confidence, updatedAt: Date.now() } : n
       )
     );
-  }, [setNotes]);
+  }, []);
 
   const handleMarkRevised = useCallback((id: string) => {
     setNotes((prev) =>
@@ -104,7 +123,7 @@ export default function App() {
           : n
       )
     );
-  }, [setNotes]);
+  }, []);
 
   // Active category data
   const activeCategory = activeCategoryId
